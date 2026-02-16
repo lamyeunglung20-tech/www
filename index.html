@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中英字型分離處理器</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* 自定義動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        /* 隱藏 Scrollbar 但保留功能 */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800">
+
+    <div class="min-h-screen p-4 md:p-8 flex justify-center">
+        <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[85vh]">
+            
+            <!-- 頂部標題 -->
+            <div class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-100 p-2 rounded-lg">
+                        <i data-lucide="type" class="text-indigo-600 w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-800">中英字型分離處理器</h1>
+                        <p class="text-xs text-slate-500">Word 試卷專用排版工具</p>
+                    </div>
+                </div>
+                
+                <!-- 狀態顯示區 -->
+                <div id="status-toast" class="hidden px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 animate-fade-in">
+                    <!-- JS 動態插入內容 -->
+                </div>
+            </div>
+
+            <!-- 設定區域 -->
+            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">英文字型</label>
+                    <select id="fontEn" class="w-full p-2 bg-white border border-slate-300 rounded hover:border-indigo-500 focus:border-indigo-500 outline-none text-sm">
+                        <option value="Calibri">Calibri</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Helvetica">Helvetica</option>
+                        <option value="Verdana">Verdana</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">中文字型</label>
+                    <select id="fontZh" class="w-full p-2 bg-white border border-slate-300 rounded hover:border-indigo-500 focus:border-indigo-500 outline-none text-sm">
+                        <option value="PMingLiU">新細明體 (PMingLiU)</option>
+                        <option value="DFKai-SB">標楷體 (DFKai-SB)</option>
+                        <option value="Microsoft JhengHei">微軟正黑體</option>
+                        <option value="SimSun">中易宋體 (SimSun)</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">字體大小 (pt)</label>
+                    <input type="number" id="fontSize" value="12" min="8" max="72" class="w-full p-2 bg-white border border-slate-300 rounded hover:border-indigo-500 focus:border-indigo-500 outline-none text-sm">
+                </div>
+
+                 <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">行高</label>
+                    <input type="number" id="lineHeight" value="1" min="1" max="3" step="0.1" class="w-full p-2 bg-white border border-slate-300 rounded hover:border-indigo-500 focus:border-indigo-500 outline-none text-sm">
+                </div>
+            </div>
+
+            <!-- 編輯區域 -->
+            <div class="flex-1 relative group overflow-hidden">
+                <textarea
+                    id="mainText"
+                    placeholder="請在此貼上您的文章..."
+                    class="w-full h-full p-6 resize-none outline-none text-slate-700 leading-relaxed bg-transparent relative z-10"
+                ></textarea>
+                
+                <!-- 空白提示圖示 -->
+                <div id="empty-placeholder" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-slate-300 pointer-events-none flex flex-col items-center z-0">
+                    <i data-lucide="file-text" class="w-12 h-12"></i>
+                    <span class="mt-2 text-sm">輸入區</span>
+                </div>
+            </div>
+
+            <!-- 底部按鈕區 -->
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+                
+                <!-- 左側工具組 -->
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button
+                        onclick="clearText()"
+                        class="px-3 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        title="清空內容"
+                    >
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> <span class="hidden sm:inline">清空</span>
+                    </button>
+
+                    <div class="h-8 w-px bg-slate-300 mx-1 self-center hidden sm:block"></div>
+
+                    <button
+                        onclick="handleRemoveEmptyLines()"
+                        class="px-3 py-2 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        title="刪除所有空行，讓文字緊密排列"
+                    >
+                        <i data-lucide="arrow-up" class="w-4 h-4"></i> 移除空行 (緊密排列)
+                    </button>
+                </div>
+                
+                <!-- 右側輸出組 -->
+                <div class="flex gap-3 w-full md:w-auto justify-end">
+                    <button
+                        onclick="handleDownload()"
+                        class="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-sm font-bold shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                    >
+                        <i data-lucide="download" class="w-4.5 h-4.5"></i> 下載 .doc
+                    </button>
+
+                    <button
+                        onclick="handleCopy()"
+                        id="btn-copy"
+                        class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        <i data-lucide="copy" class="w-4.5 h-4.5"></i>
+                        <span>複製到 Word</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 初始化 Lucide 圖標
+        lucide.createIcons();
+
+        // DOM 元素引用
+        const els = {
+            text: document.getElementById('mainText'),
+            fontEn: document.getElementById('fontEn'),
+            fontZh: document.getElementById('fontZh'),
+            fontSize: document.getElementById('fontSize'),
+            lineHeight: document.getElementById('lineHeight'),
+            placeholder: document.getElementById('empty-placeholder'),
+            toast: document.getElementById('status-toast'),
+            btnCopy: document.getElementById('btn-copy')
+        };
+
+        // 狀態變數
+        let settings = {
+            fontEn: 'Calibri',
+            fontZh: 'PMingLiU',
+            fontSize: 12,
+            lineHeight: 1,
+            color: '#000000'
+        };
+
+        // 更新預覽樣式
+        function updatePreviewStyle() {
+            settings.fontEn = els.fontEn.value;
+            settings.fontZh = els.fontZh.value;
+            settings.fontSize = els.fontSize.value;
+            settings.lineHeight = els.lineHeight.value;
+
+            els.text.style.fontFamily = `'${settings.fontEn}', '${settings.fontZh}', sans-serif`;
+            els.text.style.fontSize = `${settings.fontSize}pt`;
+            els.text.style.lineHeight = settings.lineHeight;
+
+            // 處理 Placeholder 顯示
+            if (els.text.value) {
+                els.placeholder.classList.add('hidden');
+            } else {
+                els.placeholder.classList.remove('hidden');
+            }
+        }
+
+        // 綁定事件監聽器
+        [els.fontEn, els.fontZh, els.fontSize, els.lineHeight].forEach(el => {
+            el.addEventListener('change', updatePreviewStyle);
+            el.addEventListener('input', updatePreviewStyle);
+        });
+        els.text.addEventListener('input', updatePreviewStyle);
+
+        // 初始化樣式
+        updatePreviewStyle();
+
+        // 顯示狀態提示
+        let toastTimeout;
+        function showStatus(type, msg) {
+            clearTimeout(toastTimeout);
+            
+            els.toast.className = `px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 animate-fade-in ${
+                type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+            }`;
+            
+            const icon = type === 'success' ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : '';
+            els.toast.innerHTML = `${icon} ${msg}`;
+            els.toast.classList.remove('hidden');
+            lucide.createIcons();
+
+            toastTimeout = setTimeout(() => {
+                els.toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- 功能：清空 ---
+        function clearText() {
+            els.text.value = '';
+            updatePreviewStyle();
+            els.text.focus();
+        }
+
+        // --- 功能：移除空行 ---
+        function handleRemoveEmptyLines() {
+            const text = els.text.value;
+            if (!text) {
+                showStatus('error', '目前沒有文字可處理');
+                return;
+            }
+
+            // 邏輯：分割 -> 過濾空白 -> 重組
+            const newText = text
+                .split('\n')
+                .filter(line => line.trim() !== '')
+                .join('\n');
+
+            els.text.value = newText;
+            updatePreviewStyle(); // 確保 placeholder 狀態正確
+            showStatus('success', '已移除所有空行，文字已緊密排列');
+        }
+
+        // --- 核心邏輯：生成 Word HTML ---
+        function generateSegmentedHtml(inputText) {
+            const regexChinese = /([\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+)/g;
+            const lines = inputText.split('\n');
+
+            return lines.map(line => {
+                // 處理空行
+                if (!line.trim()) {
+                    return `<p class=MsoNormal style="margin:0cm; margin-bottom:0cm; line-height:${settings.lineHeight}; mso-pagination:none; mso-layout-grid-align:none; text-autospace:none">&nbsp;</p>`;
+                }
+
+                const segments = line.split(regexChinese);
+
+                const processedSegments = segments.map(segment => {
+                    if (!segment) return '';
+                    const isChineseSegment = /[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/.test(segment);
+                    const fontFamily = isChineseSegment ? settings.fontZh : settings.fontEn;
+                    
+                    return `<span style="font-family:'${fontFamily}', sans-serif; color:${settings.color}; font-size:${settings.fontSize}pt; mso-spacerun:yes">${segment}</span>`;
+                }).join('');
+
+                return `<p class=MsoNormal style="margin:0cm; margin-bottom:0cm; line-height:${settings.lineHeight}; mso-pagination:none; mso-layout-grid-align:none; text-autospace:none">${processedSegments}</p>`;
+            }).join('');
+        }
+
+        function getFullHtml(bodyContent) {
+            return `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>Word Export</title>
+                    <style>
+                        p.MsoNormal, li.MsoNormal, div.MsoNormal {
+                            mso-style-parent: "";
+                            margin: 0cm;
+                            margin-bottom: 0.0001pt;
+                            line-height: ${settings.lineHeight};
+                            font-size: ${settings.fontSize}pt;
+                            font-family: "${settings.fontEn}";
+                        }
+                        @page Section1 {
+                            size: 595.3pt 841.9pt;
+                            margin: 72.0pt 90.0pt 72.0pt 90.0pt;
+                            mso-header-margin: 35.4pt;
+                            mso-footer-margin: 35.4pt;
+                            mso-paper-source: 0;
+                        }
+                        div.Section1 { page: Section1; }
+                    </style>
+                </head>
+                <body>
+                    <div class=Section1>
+                        ${bodyContent}
+                    </div>
+                </body>
+                </html>
+            `;
+        }
+
+        // --- 功能：複製到 Word ---
+        async function handleCopy() {
+            const text = els.text.value;
+            if (!text) {
+                showStatus('error', '請先輸入文字');
+                return;
+            }
+
+            // UI Loading 狀態
+            const originalBtnContent = els.btnCopy.innerHTML;
+            els.btnCopy.disabled = true;
+            els.btnCopy.innerHTML = `<i data-lucide="loader-2" class="w-4.5 h-4.5 animate-spin"></i> 處理中...`;
+            lucide.createIcons();
+
+            try {
+                const htmlBody = generateSegmentedHtml(text);
+                const fullHtml = getFullHtml(htmlBody);
+
+                const blobHtml = new Blob([fullHtml], { type: 'text/html' });
+                const blobText = new Blob([text], { type: 'text/plain' });
+                
+                const data = [new ClipboardItem({ 
+                    'text/html': blobHtml, 
+                    'text/plain': blobText 
+                })];
+
+                await navigator.clipboard.write(data);
+                showStatus('success', '複製成功！貼上 Word 後請選擇「保留來源格式」');
+            } catch (err) {
+                console.error(err);
+                showStatus('error', '複製失敗，請嘗試使用下載功能');
+            } finally {
+                els.btnCopy.disabled = false;
+                els.btnCopy.innerHTML = originalBtnContent;
+                lucide.createIcons();
+            }
+        }
+
+        // --- 功能：下載 .doc ---
+        function handleDownload() {
+            const text = els.text.value;
+            if (!text) {
+                showStatus('error', '請先輸入文字');
+                return;
+            }
+            
+            const htmlBody = generateSegmentedHtml(text);
+            const fullHtml = getFullHtml(htmlBody);
+            
+            const blob = new Blob(['\ufeff', fullHtml], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `DualFont_Export_${Date.now()}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showStatus('success', '檔案已下載');
+        }
+    </script>
+</body>
+</html>
